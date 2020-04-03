@@ -7,17 +7,18 @@
 #include <string>
 #include <cctype>
 #include "Karta.h"
-
-class Gracz{
-    protected:
-    Karta* mainDeck;//wskaznik do kart pozostalych w talii (agregacja)
-    int* mD_size;//wskaznik do ilosci kart pozostalych w talii (agregacja)
-    std::vector <Karta> inHand; //vector kart w rece gracza
+//do Bota
+#include <sstream>
+class Kasyno; //forward declaration zeby gracz wiedzial czy nalezy do kasyna
+class Gracz{    
+    protected:    
+    std::vector <Karta> inHand; //vector kart w rece gracza, agregacja
     bool pass; //czy spasowal
-    std::string nazwa;    
+    std::string nazwa;
+    Kasyno* kasyno_ptr;
 
     public:
-    //funkcja wejscia do menu
+    //funkcja wejscia
     long int dajInt() {
         using namespace std;
         const int sizeLimit = 5;
@@ -36,36 +37,28 @@ class Gracz{
             }
             break;
         }
+        //std::cout << "Wprowadzono liczbe: " << stoi(str) << std::endl;
         return stoi(str);
     }
 
-    Gracz(){
-        mainDeck = NULL;
-        mD_size = NULL;
-        pass = false;
-    }
+    //KONSTRUKTORY
+    Gracz():
+        pass(false),
+        kasyno_ptr(NULL)
+    {}
 
-    Gracz(Karta* mD, int* size){
-        mainDeck = mD;
-        mD_size = size;
-        pass = false;
-    }
-
-    ~Gracz(){
+    virtual ~Gracz(){
         inHand.clear();
     }
 
-    void setMainDeck(Karta* mD){
-        mainDeck = mD;
+    //AKCESORY
+    void setKasyno(Kasyno* kasyno){
+        kasyno_ptr = kasyno;
     }
 
-    void setMainDeckSize(int* size){
-        mD_size = size;
-    }
-
-    void wezKarte(Karta * _karta){ //nie wiem po co w ogole jakis argument do tej funkcji na ale tak wymusili w instrukcji...
-        if(mD_size == 0 || mainDeck == NULL){
-            std::cerr << "Error: Nie przypisano gracza do kasyna";
+    void wezKarte(Karta * _karta){
+        if(kasyno_ptr == NULL){
+            std::cerr << "ERROR: Gracz nie jest przypisany do kasyna" << std::endl;
             return;
         }
         inHand.push_back(*_karta);
@@ -91,12 +84,33 @@ class Gracz{
         nazwa = n;
     }
 
-    virtual void enterNazwa(int n){ //TODO: Polimorfizm do AI z tej metody
-        std::cout << "Podaj nazwe gracza nr " << n << " : " << std::endl;
-        std::getline(std::cin, nazwa, '\n');
+    std::string getNazwa(){
+        return nazwa;
     }
 
-    virtual bool nextMove(){ //TODO: polimorfizm do AI z tej metody
+    void printInHand(){
+        std::cout << "Karty w ręce:" << std::endl;
+        for(auto a : inHand){
+            a.wypisz();
+            std::cout << std::endl;
+        }
+        std::cout << "Ich suma to: " << points() << std::endl;
+    }
+
+    void clear(){ //zabiera karty z reki gracza
+        inHand.clear();
+    }
+
+    virtual void enterNazwa(int n){
+        std::cout << "Podaj nazwe gracza nr " << n << " : " << std::endl;
+        std::cin >> nazwa;
+    }
+
+    virtual bool nextMove(){ //Podejmuje decyzje czy dobrac czy pasowac
+        if(points() > 19){ //idiotoodpornosc +1
+            pass = true;
+            return false;
+        }
         std::cout << "1) Dobierz karte" << std::endl
         << "2) Pas" << std::endl;
         int wybor = 0;
@@ -109,94 +123,74 @@ class Gracz{
             break;
         }
         if(wybor == 1){
+            pass = false;
             return true;
         }
         else{
+            pass = true;
             return false;
         }
     }
 };
 
+///////////////////////BOT///////////////////////
 
 class Bot : public Gracz{
     private:
     int odwaga; //limit punktow do ktorego Bot bedzie dobieral
 
     public:
-    Bot(){
-        odwaga = 16; //odwaga dla normalnego gracza
-    }
+    Bot():
+    Gracz(),
+    odwaga(16) //odwaga dla normalnego gracza
+    {}
 
-    Bot(int _odwaga){
+    void setOdwaga(int _odwaga){
         if(_odwaga > 0 && _odwaga < 20){
             odwaga = _odwaga;
+        }else{
+            std::cerr << "Odwaga poza skala!" << std::endl;
         }
-        else{
-            std::cerr << "Odwaga poza dostepnym zakresem (u mad bro!?)" << std::endl
-            << "Bot utworzony z domyslna wartoscia odwagi (16)";
-            odwaga = 16;
-        }
+    }
+
+    int getOdwaga() const{
+        return odwaga;
     }
 
     void enterNazwa(int n){
-        nazwa.append("BOT ");
-        nazwa.append(n);
+        std::stringstream ss;
+        ss << "BOT " << n;
+        nazwa = ss.str();
     }
 
-    bool nextMove(){
-        if (points() < odwaga){
+    bool nextMove(){ //automatycznie podejmuje decyzje na podstawie odwagi
+        if (points() <= odwaga){
+            std::cout << getNazwa() << " dobral karte!" << std::endl;
+            pass = false;
             return true;
         }
         else{
+            std::cout << getNazwa() << " spasowal!" << std::endl;
+            pass = true;
             return false;
         }
     }
 };
 
+//////////////////////KASYNO////////////////////////
 
 class Kasyno{
     private:
     //kompozycja z klas Karta i Gracz
     Karta* mainDeck;
     int size;
-    std::vector<Gracz*> listaGraczy;
+    std::vector<Gracz*> listaGraczy; //edit: graczy i botow
     Karta tmp; //karta przekazywana graczowi
-
-    void clear(){
-        if(mainDeck != NULL){
-            delete[] mainDeck;
-            mainDeck = NULL;
-        }
-    }
+    //wskazniki pomocnicze:
+    Gracz* g;
+    Bot* b;
+    int botCount;
     
-    void push_back(Karta& k){
-        size++;
-        Karta* tmp_new = new Karta[size];
-        Karta* tmp_old = mainDeck;
-        for(int i = 0; size > 0 && i < size - 1; i++){
-            tmp_new[i] = mainDeck[i];
-        }
-        mainDeck = tmp_new;
-        mainDeck[size - 1] = k;        
-        if(tmp_old != NULL){
-            delete[] tmp_old;
-            tmp_old = NULL;
-        }
-        //std::cout << "push: " << k.getWartosc() << " kol: " << k.getKolor() << std::endl;
-        //std::cout << "size = " << size << std::endl << std::endl;
-    }
-
-    void pop_back(){
-        if (size > 0){
-            size--;
-            Karta* tmp_new = new Karta[size];
-            for(int i = 0; i < size; i++){
-                tmp_new[i] = mainDeck[i];
-            }
-            clear();
-            mainDeck = tmp_new;
-        }
-    }
 ///*
     void printDeck() const{
         for(int i = 0; i < 52; i++){
@@ -207,13 +201,19 @@ class Kasyno{
     }
 //*/
     void initDeck(){ //tworzenie tablicy 52 unikalnych, potasowanych kart
-        clear();
+        g = NULL;
+        b = NULL;        
+        size = 0;
+        for(auto a: listaGraczy){
+            a->clear();
+        }
         Karta k = Karta();
         for(int i = 0; i < 13; i++){
             for(int j = 0; j < 4; j++){
                 k.setKolor(j);
                 k.setWartosc(i);
-                push_back(k);
+                mainDeck[size] = k;
+                size++;
             }
         }
         size_t s = std::chrono::system_clock::now().time_since_epoch().count(); //czas jako seed
@@ -222,51 +222,103 @@ class Kasyno{
     }
 
     void addPlayer(){
-        Gracz g = Gracz(mainDeck, &size);
-        g.enterNazwa(listaGraczy.size() + 1);
-        listaGraczy.push_back(&g);
+        g = new Gracz();
+        g->setKasyno(this);
+        g->enterNazwa(listaGraczy.size() + 1);
+        listaGraczy.push_back(g);
     }
 
     void addBot(){
-        //TODO
+        botCount++;
+        b = new Bot();
+        b->setKasyno(this);
+        b->enterNazwa(botCount);
+        listaGraczy.push_back(b);
     }
 
     //KONIEC PRIVATE
 
-
     public:
     Kasyno(){
-        mainDeck = NULL;
+        g = NULL;
+        b = NULL;        
         size = 0;
-        //initDeck();
+        botCount = 0;
+        mainDeck = new Karta[52];
     }
 
     ~Kasyno(){
+        delete [] mainDeck;
         listaGraczy.clear();
-        //std::cout << "Destruktor" << std::endl;
-        if(mainDeck != NULL){
-            delete[] mainDeck;
-        }
+        //std::cout << "Destruktor" << std::endl;        
     }
 
     Karta* dajKarte(){
         tmp = mainDeck[size - 1];
-        pop_back();
+        size--;
         return &tmp;
     }
 
     void reset(){
-        initDeck();
         listaGraczy.clear();
+        botCount = 0;
     }
 
     void runOczko(){
-        initDeck();     
+        if(listaGraczy.size() < 2){
+            std::cout << "Musisz dodac conajmniej dwoch graczy!" << std::endl;
+            return;
+        }
+        initDeck();
+        //rozdanie po dwie karty kazdemu
+        for(int i = 0; i < 2; i++){
+            for(auto a : listaGraczy){
+                a->wezKarte(dajKarte());
+            }
+        }
+        //poczatek gry
+        bool dontFinish = true;
+        while(dontFinish){
+            for(auto a : listaGraczy){
+                std::cout << std::endl << "---------------------" << std::endl << "Tura gracza " << a->getNazwa() << std::endl;
+                a->printInHand();
+                if(a->nextMove()){
+                    a->wezKarte(dajKarte());
+                }
+            }
+            for(auto a : listaGraczy){ //sprawdzenie czy kazdy spasowal
+                if(!a->getPass()){
+                    dontFinish = true;
+                    break;
+                }
+                else{
+                    dontFinish = false;
+                    continue;
+                }
+            }
+        }
+        //sortowanie listy graczy od najwiekszego wyniku
+        std::sort(listaGraczy.begin(), listaGraczy.end(), [] (Gracz* a, Gracz* b) { return a->points() > b->points(); } );
+        Gracz* winner = NULL;
+        //wylonienie zwyciezcy przy werblach
+        std::cout << "Lista wynikow: " << std::endl;
+        for(auto a : listaGraczy){
+            std::cout << "Wynik dla " << a->getNazwa() << " wynosi : " << a->points();
+            if(a->points() > 21){
+                std::cout << " L00SER!";
+            }
+            std::cout  << std::endl;
+            if(winner == NULL && a->points() < 22){
+                winner = a;
+            }
+        }
+        std::cout << std::endl << "THE WINNER IS: << " << winner->getNazwa() << " >>"<< std::endl << std::endl;
     }
 
     void menu(){
-        Gracz g = Gracz(mainDeck, &size);
+        Gracz g = Gracz();
         int w = 0;
+        std::cout << "Witoj w grze w Oczko! \nWybierz jedna z opcji:" << std::endl;
         while(true){
             switch(w){
                 case 0:
@@ -274,8 +326,10 @@ class Kasyno{
                 << "2) Dodaj bota" << std::endl
                 << "3) Rozpocznij nowa gre" << std::endl
                 << "4) Wyswietl liste graczy i botow" << std::endl
+                << "5) Usun wszystkich graczy i boty" << std::endl
                 << "5) Zakoncz" << std::endl;
                 w = g.dajInt();
+                break;
 
                 case 1:
                 addPlayer();
@@ -292,13 +346,19 @@ class Kasyno{
                 w = 0;
                 break;
 
-                case 4: //TODO
-                //printPlayers();
-                //printBots();
+                case 4:
+                for(auto a : listaGraczy){
+                    std::cout << a->getNazwa() << std::endl;
+                }
                 w = 0;
                 break;
 
                 case 5:
+                reset();
+                w = 0;
+                return;
+
+                case 6:
                 return;
             }
         }
@@ -307,6 +367,6 @@ class Kasyno{
 
 int main(){
     Kasyno k = Kasyno();
-    k.runOczko();
+    k.menu();
     return 0;
 }
