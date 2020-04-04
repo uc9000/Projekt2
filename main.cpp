@@ -12,9 +12,9 @@
 class Kasyno; //forward declaration zeby gracz wiedzial czy nalezy do kasyna
 class Gracz{    
     protected:    
-    std::vector <Karta> inHand; //vector kart w rece gracza, agregacja
+    std::vector <Karta> inHand; //vector kart w rece gracza, agregacja za pomoca metody wezKarte()
+    std::string nazwa; //ograniczenie do 20 znakow w akcesorach / metodach wejscia
     bool pass; //czy spasowal
-    std::string nazwa;
     Kasyno* kasyno_ptr;
 
     public:
@@ -40,8 +40,24 @@ class Gracz{
         //std::cout << "Wprowadzono liczbe: " << stoi(str) << std::endl;
         return stoi(str);
     }
+    
+    bool takCzyNie() {
+        using namespace std;
+        int q;
+        while (true) {
+            cout << "	1) Tak\n	2) Nie" << endl;
+            q = dajInt();
+            if (q == 1)
+                return true;
+            else if (q == 2)
+                return false;
+            else
+                continue;
+        }
+        return false;
+    }
 
-    //KONSTRUKTORY
+    //KONSTRUKTOR I DESTRUKTOR
     Gracz():
         pass(false),
         kasyno_ptr(NULL)
@@ -52,6 +68,7 @@ class Gracz{
     }
 
     //AKCESORY
+
     void setKasyno(Kasyno* kasyno){
         kasyno_ptr = kasyno;
     }
@@ -81,7 +98,7 @@ class Gracz{
     }
 
     void setNazwa(std::string n){
-        nazwa = n;
+        nazwa.append(n, 20);
     }
 
     std::string getNazwa(){
@@ -104,10 +121,17 @@ class Gracz{
     virtual void enterNazwa(int n){
         std::cout << "Podaj nazwe gracza nr " << n << " : " << std::endl;
         std::cin >> nazwa;
+        nazwa.resize(20);
     }
 
     virtual bool nextMove(){ //Podejmuje decyzje czy dobrac czy pasowac
-        if(points() > 19){ //idiotoodpornosc +1
+        if(points() > 19 || pass == true){ //idiotoodpornosc +1
+            pass = true;
+            return false;
+        }
+        if(inHand.size() >= 10){
+            std::cout << "Osiagnieto limit kart w rece gracza (10)" << std::endl
+            << "Gracz " << nazwa << " spasowal." << std::endl;
             pass = true;
             return false;
         }
@@ -164,7 +188,7 @@ class Bot : public Gracz{
     }
 
     bool nextMove(){ //automatycznie podejmuje decyzje na podstawie odwagi
-        if (points() <= odwaga){
+        if (points() <= odwaga && inHand.size() < 10){
             std::cout << getNazwa() << " dobral karte!" << std::endl;
             pass = false;
             return true;
@@ -187,9 +211,9 @@ class Kasyno{
     std::vector<Gracz*> listaGraczy; //edit: graczy i botow
     Karta tmp; //karta przekazywana graczowi
     //wskazniki pomocnicze:
+    int botCount;
     Gracz* g;
     Bot* b;
-    int botCount;
     
 ///*
     void printDeck() const{
@@ -222,28 +246,75 @@ class Kasyno{
     }
 
     void addPlayer(){
+        if((listaGraczy.size() - botCount) == 3){
+            std::cout << "Osiagnieto limit graczy!" << std::endl;
+            return;
+        }
         g = new Gracz();
         g->setKasyno(this);
         g->enterNazwa(listaGraczy.size() + 1);
         listaGraczy.push_back(g);
+        std::cout << "Pomyslnie utworzono gracza " << g->getNazwa() << std::endl;
     }
 
     void addBot(){
-        botCount++;
+        if(botCount == 3){
+            std::cout << "Osiagnieto limit botow!" << std::endl;
+            return;
+        }
         b = new Bot();
+        int w = 0;
+        int odwaga;
+        std::cout << "Jakiego typu BOTa chcesz dodac?" << std::endl;
+        while(w >= 0){
+            switch(w){
+                case 0:
+                std::cout << "1) Ryzykujacy" << std::endl
+                << "2) Normalny" << std::endl
+                << "3) Zachowawczy" << std::endl;
+                while(true){
+                    w = b->dajInt();
+                    if(w > 3 || w < 1){
+                        std::cerr << "Wybierz jedna z dostepnych opcji!" << std::endl;
+                        continue;
+                    }
+                    break;
+                }
+                break;
+
+                case 1:
+                odwaga = 17;
+                w = -1;
+                break;
+
+                case 2:
+                odwaga = 15;
+                w = -1;
+                break;
+
+                case 3:
+                odwaga = 12;
+                w = -1;
+                break;
+            }
+        }
+        botCount++;
+        b->setOdwaga(odwaga);
         b->setKasyno(this);
         b->enterNazwa(botCount);
         listaGraczy.push_back(b);
+        std::cout << "Pomyslnie utworzona " << b->getNazwa() << std::endl;
     }
 
     //KONIEC PRIVATE
 
     public:
-    Kasyno(){
-        g = NULL;
-        b = NULL;        
-        size = 0;
-        botCount = 0;
+    Kasyno():      
+        size(0),
+        botCount(0),
+        g(NULL),
+        b(NULL)
+    {
         mainDeck = new Karta[52];
     }
 
@@ -299,7 +370,8 @@ class Kasyno{
         }
         //sortowanie listy graczy od najwiekszego wyniku
         std::sort(listaGraczy.begin(), listaGraczy.end(), [] (Gracz* a, Gracz* b) { return a->points() > b->points(); } );
-        Gracz* winner = NULL;
+        std::vector<Gracz*> winners;
+        int winnerScore = 0;
         //wylonienie zwyciezcy przy werblach
         std::cout << "Lista wynikow: " << std::endl;
         for(auto a : listaGraczy){
@@ -307,12 +379,28 @@ class Kasyno{
             if(a->points() > 21){
                 std::cout << " L00SER!";
             }
+            if(a->points() == 21){
+                std::cout << " OCZKO!";
+            }
             std::cout  << std::endl;
-            if(winner == NULL && a->points() < 22){
-                winner = a;
+            if(a->points() < 22 && a->points() >= winnerScore){
+                winnerScore = a->points();
+                winners.push_back(a);
             }
         }
-        std::cout << std::endl << "THE WINNER IS: << " << winner->getNazwa() << " >>"<< std::endl << std::endl;
+        if(winners.size() == 0){
+            std::cout << "WSZYSCY PRZEGRALI xD" << std::endl;
+        }
+        else if(winners.size() == 1){
+            std::cout << std::endl << "THE WINNER IS: << " << winners.at(0)->getNazwa() << " >>"<< std::endl << std::endl;
+        }
+        else{
+            std::cout << std::endl << "REMIS! Gracze: " << std::endl;
+            for(auto w : winners){
+                std::cout << w->getNazwa() << std::endl;
+            }
+            std::cout << "Uzyskali ten sam wynik." << std::endl;
+        }
     }
 
     void menu(){
@@ -327,8 +415,15 @@ class Kasyno{
                 << "3) Rozpocznij nowa gre" << std::endl
                 << "4) Wyswietl liste graczy i botow" << std::endl
                 << "5) Usun wszystkich graczy i boty" << std::endl
-                << "5) Zakoncz" << std::endl;
-                w = g.dajInt();
+                << "6) Zakoncz" << std::endl;
+                while(true){
+                    w = g.dajInt();
+                    if(w > 6 || w < 1){
+                        std::cout << "Wybierz jedna z dostepnych opcji z menu!" << std::endl;
+                        continue;
+                    }
+                    break;
+                }                
                 break;
 
                 case 1:
@@ -356,10 +451,17 @@ class Kasyno{
                 case 5:
                 reset();
                 w = 0;
-                return;
+                break;
 
                 case 6:
-                return;
+                std::cout << "Czy napewno chcesz zakonczyc?" << std::endl;
+                if(g.takCzyNie()){
+                    return;
+                }
+                else{
+                    w = 0;
+                    break;
+                }                
             }
         }
     }

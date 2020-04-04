@@ -1,3 +1,5 @@
 p
 Karta.h
 Karta.cpp
+*.o
+*.desktop
