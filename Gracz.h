@@ -18,10 +18,7 @@ class Gracz{
     long int dajInt();
     bool takCzyNie();
     //KONSTRUKTOR I DESTRUKTOR
-    Gracz():
-        pass(false),
-        kasyno_ptr(NULL)
-    {}
+    Gracz();
     virtual ~Gracz();
     //AKCESORY
     void setKasyno(Kasyno* kasyno);

@@ -1,14 +1,14 @@
 #include "Kasyno.h"
-//do kasyna:
+//z Kasyna:
 //#include <algorithm>
 //#include <random>
 //#include <chrono>
-//do gracza:
+//z Gracza:
 //#include <vector>
 //#include <string>
 //#include <cctype>
 //#include "Karta.h"
-//do Bota:
+//z Bota:
 //#include <sstream>
 
 int main(){

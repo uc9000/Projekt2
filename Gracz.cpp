@@ -39,6 +39,11 @@ bool Gracz::takCzyNie() {
 }
 
 //KONSTRUKTOR I DESTRUKTOR
+Gracz::Gracz():
+    pass(false),
+    kasyno_ptr(NULL)
+{}
+
 Gracz::~Gracz(){
     inHand.clear();
 }
