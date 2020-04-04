@@ -1,5 +1,10 @@
 #include "Bot.h"
 
+Bot::Bot():
+    Gracz(),
+    odwaga(15) //odwaga dla normalnego gracza
+{}
+
 void Bot::setOdwaga(int _odwaga){
     if(_odwaga > 0 && _odwaga < 20){
         odwaga = _odwaga;

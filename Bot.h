@@ -5,10 +5,7 @@ class Bot : public Gracz{
     private:
     int odwaga; //limit punktow do ktorego Bot bedzie dobieral
     public:
-    Bot():
-    Gracz(),
-    odwaga(15) //odwaga dla normalnego gracza
-    {}
+    Bot();
     void setOdwaga(int _odwaga);
     int getOdwaga() const;
     void enterNazwa(int n);
