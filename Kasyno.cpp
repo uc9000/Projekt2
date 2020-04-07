@@ -9,7 +9,7 @@ void Kasyno::printDeck() const{
 
 void Kasyno::initDeck(){ //tworzenie tablicy 52 unikalnych, potasowanych kart
     g = NULL;
-    b = NULL;        
+    b = NULL;
     size = 0;
     for(auto a: listaGraczy){
         a->clear();
