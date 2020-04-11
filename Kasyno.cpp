@@ -86,7 +86,7 @@ void Kasyno::addBot(){
     b->setKasyno(this);
     b->enterNazwa(botCount);
     listaGraczy.push_back(b);
-    std::cout << "Pomyslnie utworzona " << b->getNazwa() << std::endl;
+    std::cout << "Pomyslnie utworzono " << b->getNazwa() << std::endl;
 }
 
 Karta* Kasyno::dajKarte(){
@@ -119,7 +119,7 @@ void Kasyno::runOczko(){
     if(listaGraczy.size() < 2){
         std::cout << "Musisz dodac conajmniej dwoch graczy!" << std::endl;
         return;
-    }
+    }    
     initDeck();
     //rozdanie po dwie karty kazdemu
     for(int i = 0; i < 2; i++){
@@ -190,7 +190,7 @@ void Kasyno::menu(){
     while(true){
         switch(w){
             case 0:
-            std::cout << "1) Dodaj gracza" << std::endl
+            std::cout << std::endl << "1) Dodaj gracza" << std::endl
             << "2) Dodaj bota" << std::endl
             << "3) Rozpocznij nowa gre" << std::endl
             << "4) Wyswietl liste graczy i botow" << std::endl

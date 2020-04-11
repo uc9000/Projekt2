@@ -95,6 +95,7 @@ void Gracz::printInHand(){
 }
 
 void Gracz::clear(){ //zabiera karty z reki gracza
+    pass = false;
     inHand.clear();
 }
 
